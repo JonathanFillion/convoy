@@ -59,10 +59,23 @@
 			}
 		}
 
+		class Wart extends MapEntity {
+			constructor(x,y) {
+				super(x,y)
+			}
+
+			draw(ctx) {
+				
+			}
+
+
+		}
+
 		class Bullet extends MapEntity {
 			constructor(x, y, target, canvasWidth, canvasHeight){
 				super(x, y)
 				this.display = true
+				this.kill = false
 				this.radius = 5
 				this.speed = 15
 				this.stepCount = 0
@@ -74,17 +87,14 @@
 			}
 
 			draw(ctx) {
-				if(this.display){
 					ctx.beginPath();
 					ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
 					ctx.fillStyle = "red";
 					ctx.fill();
 					ctx.closePath();
-				}
 			}
 
 			update() {
-				console.log(this.steps)
 				this.setX(this.getX() + this.moveUnits.x)
 				this.setY(this.getY() + this.moveUnits.y)
 				this.checkBounds()
@@ -97,7 +107,7 @@
 			}
 
 			destroySelf() {
-				this.display = false;
+				this.kill = true;
 			}
 
 			calculateDistance(x,y,target) {
@@ -109,7 +119,6 @@
 			calculateUnits(x, y, target, steps) {
 				var speedX = (target.x - x) / steps
 				var speedY = (target.y - y) / steps
-				console.log(speedX, speedY)
 				return {x:speedX, y:speedY}
 			}
 
@@ -157,7 +166,14 @@
 				this.mapEntities.push(bullet)
 			}
 
-			updateEntitiesPositions() {
+
+			verifyEntities() {
+				this.mapEntities = this.mapEntities.filter(function(entity){
+					return !entity.kill					
+				})
+			}
+
+			updateEntities() {
 				for(let i = 0 ; i < this.mapEntities.length; i++) {
 					this.mapEntities[i].update()
 				}
@@ -216,7 +232,8 @@
 
 		function run(){
 			gameManager.updatePlayerPosition(movement)
-			gameManager.updateEntitiesPositions()
+			gameManager.verifyEntities()
+			gameManager.updateEntities()
 			gameManager.draw()
 		}
 
