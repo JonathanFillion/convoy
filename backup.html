@@ -62,9 +62,8 @@
 		class Bullet extends MapEntity {
 			constructor(x, y, target, canvasWidth, canvasHeight){
 				super(x, y)
-				this.display = true
 				this.radius = 5
-				this.speed = 15
+				this.speed = 5
 				this.stepCount = 0
 				this.steps = this.calculateDistance(x,y,target) / this.speed
 				this.moveUnits = this.calculateUnits(x, y, target, this.steps)
@@ -74,43 +73,19 @@
 			}
 
 			draw(ctx) {
-				if(this.display){
-					ctx.beginPath();
-					ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
-					ctx.fillStyle = "red";
-					ctx.fill();
-					ctx.closePath();
-				}
+				ctx.beginPath();
+				ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+				ctx.fillStyle = "red";
+				ctx.fill();
+				ctx.closePath();
 			}
 
 			update() {
-				console.log(this.steps)
-				this.setX(this.getX() + this.moveUnits.x)
-				this.setY(this.getY() + this.moveUnits.y)
-				this.checkBounds()
-			}
-
-			checkBounds() {
-				if(this.getX() < 0 || this.getY() < 0 || this.getX() > this.canvasWidth || this.getY() > this.canvasHeight){
-					this.destroySelf()
+				if(this.stepCount < this.steps){
+					this.setX(this.getX() + this.moveUnits.x)
+					this.setY(this.getY() + this.moveUnits.y)
+					this.stepCount++
 				}
-			}
-
-			destroySelf() {
-				this.display = false;
-			}
-
-			calculateDistance(x,y,target) {
-				var dx = target.x - x
-				var dy = target.y - y
-				return Math.sqrt(dx*dx + dy*dy)
-			}
-
-			calculateUnits(x, y, target, steps) {
-				var speedX = (target.x - x) / steps
-				var speedY = (target.y - y) / steps
-				console.log(speedX, speedY)
-				return {x:speedX, y:speedY}
 			}
 
 			getX() {
@@ -128,7 +103,19 @@
 			setY(y) {
 				this.y = y
 			}
-			
+
+			calculateDistance(x,y,target) {
+				var dx = target.x - x
+				var dy = target.y - y
+				return Math.sqrt(dx*dx + dy*dy)
+			}
+
+			calculateUnits(x, y, target, steps) {
+				var speedX = (target.x - x) / steps
+				var speedY = (target.y - y) / steps
+				console.log(speedX, speedY)
+				return {speedX, speedY}
+			}
 		}
 
 		class GameManager {
@@ -153,7 +140,7 @@
 			}
 
 			spawnEntity(target) {
-				var bullet = new Bullet(this.player.getX(), this.player.getY(), target, this.canvasWidth, this.canvasHeight)
+				var bullet = new Bullet(this.player.getX(), this.player.getY(), target)
 				this.mapEntities.push(bullet)
 			}
 
