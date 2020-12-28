@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Dark.io</title>
+	<style>
+		* { padding: 0; margin: 0; }
+		
+		canvas {
+			position: absolute;
+			top     : 0px;
+			left    : 0px;
+			z-index : 100;
+		}
+	</style>
+</head>
+<body>
+
+	<script>
+
+		class Player {
+
+			constructor(x, y, radius) {
+				this.x = x
+				this.y = y
+				this.radius = radius
+			}
+
+			getPosition() {
+				return {x: this.x, y: this.y}
+			}
+
+			getX() {
+				return this.x
+			}
+
+			getY() {
+				return this.y
+			}
+
+			setX(dx) {
+				this.x += dx
+			}
+
+			setY(dy) {
+				this.y += dy
+			}
+
+			draw(ctx) {
+				ctx.beginPath();
+				ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+				ctx.fillStyle = "#0095DD";
+				ctx.fill();
+				ctx.closePath();
+			}
+
+		}
+
+		class Entity {
+			constructor(x, y) {
+				this.x = x
+				this.y = y
+
+			}
+		}
+
+
+
+		class Bullet extends Entity {
+			constructor(x, y, target, canvasWidth, canvasHeight){
+				super(x, y)
+				this.display = true
+				this.kill = false
+				this.radius = 5
+				this.speed = 15
+				this.stepsCount = 0
+				this.steps = this.calculateDistance(x,y,target) / this.speed
+				this.moveUnits = this.calculateUnits(x, y, target, this.steps)
+				this.type = "bullet"
+				this.canvasWidth = canvasWidth
+				this.canvasHeight = canvasHeight
+			}
+
+			draw(ctx) {
+				ctx.beginPath();
+				ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+				ctx.fillStyle = "red";
+				ctx.fill();
+				ctx.closePath();
+			}
+
+			update() {
+				if(this.stepsCount < this.steps) {
+					this.setX(this.getX() + this.moveUnits.x)
+					this.setY(this.getY() + this.moveUnits.y)
+					this.checkBounds()
+					this.stepsCount++
+				} else {
+					this.destroySelf()
+				}
+			}
+
+			checkBounds() {
+				if(this.getX() < 0 || this.getY() < 0 || this.getX() > this.canvasWidth || this.getY() > this.canvasHeight){
+					this.destroySelf()
+				}
+			}
+
+			destroySelf() {
+				this.kill = true;
+			}
+
+			calculateDistance(x,y,target) {
+				var dx = target.x - x
+				var dy = target.y - y
+				return Math.sqrt(dx*dx + dy*dy)
+			}
+
+			calculateUnits(x, y, target, steps) {
+				var speedX = (target.x - x) / steps
+				var speedY = (target.y - y) / steps
+				return {x:speedX, y:speedY}
+			}
+
+			getX() {
+				return this.x
+			}
+
+			getY() {
+				return this.y
+			}
+
+			setX(x) {
+				this.x = x
+			}
+
+			setY(y) {
+				this.y = y
+			}
+
+		}
+
+		class Utils {
+
+			getRandomInt(max) {
+				return Math.floor(Math.random() * Math.floor(max));
+			}	
+
+		}
+
+		class GameManager {
+
+
+			constructor(backgroundCtx, ligthmapCtx, entitiesCtx, canvasWidth, canvasHeight){
+				this.backgroundCtx = backgroundCtx
+				this.ligthmapCtx = ligthmapCtx
+				this.entitiesCtx = entitiesCtx
+				this.movement = {w: false, a: false, s: false, d: false}
+				this.canvasWidth = canvasWidth
+				this.canvasHeight = canvasHeight
+				this.player = null
+				this.players = []
+				this.playerRadius = 10
+				this.playerSpeed = 2
+				this.mapEntities = []
+				this.utils = new Utils()
+			}
+
+			update(){
+				this.updatePlayerPosition(this.movement)
+				this.verifyEntities()
+				this.updateEntities()
+				this.draw()
+			}
+
+			addPlayer(x, y) {
+				this.players.push(new Player(x, y, this.playerRadius))
+			}
+
+			selectPlayer(index) {
+				this.player = this.players[index]
+			}
+
+			spawnBullet(target) {
+				var bullet = new Bullet(this.player.getX(), this.player.getY(), target, this.canvasWidth, this.canvasHeight)
+				this.mapEntities.push(bullet)
+			}
+
+			spawnWart() {
+				var wart = new Wart(this.utils.getRandomInt(this.canvasWidth), this.utils.getRandomInt(this.canvasHeight))
+				this.mapEntities.push(wart)
+			}
+
+			verifyEntities() {
+				this.mapEntities = this.mapEntities.filter(function(entity){
+					return !entity.kill					
+				})
+			}
+
+			updateEntities() {
+				for(let i = 0 ; i < this.mapEntities.length; i++) {
+					this.mapEntities[i].update()
+				}
+			}
+
+			updatePlayerPosition(movement) {
+				if(this.movement.w == true) {
+					if((this.player.getY() - this.playerRadius) - this.playerSpeed > 0) {
+						this.player.setY(-this.playerSpeed)
+					}
+				}
+				if(this.movement.s == true) {
+					if((this.player.getY() + this.playerRadius) + this.playerSpeed < this.canvasHeight) {
+						this.player.setY(this.playerSpeed)
+					}
+				}
+				if(this.movement.a == true) {
+					if((this.player.getX() - this.playerRadius) - this.playerSpeed > 0) {
+						this.player.setX(-this.playerSpeed)
+					}
+				}
+				if(this.movement.d == true) {
+					if((this.player.getX() + this.playerRadius) + this.playerSpeed < this.canvasWidth) {
+						this.player.setX(this.playerSpeed)
+					}
+				}
+			}
+
+			draw() {
+				this.entitiesCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+
+				this.ligthmapCtx.fillStyle = 'rgba( 0, 0, 0, 1 )';
+				this.ligthmapCtx.fillRect( 0, 0, this.canvasWidth, this.canvasHeight);
+				this.ligthmapCtx.globalCompositeOperation = 'destination-out';
+
+				//this.map.draw(this.ctx)
+
+				for(let i = 0 ; i < this.players.length; i++) {
+					this.players[i].draw(this.entitiesCtx)
+				}
+				for(let i = 0; i < this.mapEntities.length; i++) {
+					this.mapEntities[i].draw(this.entitiesCtx)
+				}
+			}
+
+			hover(ev) {
+				var r1 = 100
+				var r2 = 300
+				var hideFill = 'rgba( 0, 0, 0, .7 )'
+				var pX = ev.pageX
+				var pY = ev.pageY
+
+				var radGrd = this.ligthmapCtx.createRadialGradient( pX, pY, r1, pX, pY, r2 );
+				radGrd.addColorStop( 0, 'rgba( 0, 0, 0,  1 )' );
+				radGrd.addColorStop( 0.4, 'rgba( 0, 0, 0, .1 )' );
+				radGrd.addColorStop( 1, 'rgba( 0, 0, 0,  0 )' );
+
+				this.ligthmapCtx.fillStyle = radGrd;
+				this.ligthmapCtx.fillRect( pX - r2, pY - r2, r2*2, r2*2 );
+
+				this.backgroundCtx.globalCompositeOperation = 'source-over';
+				this.backgroundCtx.clearRect( 0, 0, this.canvasWidth, this.canvasHeight );
+				this.backgroundCtx.fillStyle = hideFill;
+				this.backgroundCtx.fillRect ( 0, 0, this.canvasWidth, this.canvasHeight  );
+
+				var radGrd = this.ligthmapCtx.createRadialGradient( pX, pY, r1, pX, pY, r2 );
+				radGrd.addColorStop(  0, 'rgba( 0, 0, 0,  1 )' );
+				radGrd.addColorStop( .8, 'rgba( 0, 0, 0, .1 )' );
+				radGrd.addColorStop(  1, 'rgba( 0, 0, 0,  0 )' );
+
+				this.backgroundCtx.globalCompositeOperation = 'destination-out';
+				this.backgroundCtx.fillStyle = radGrd;
+				this.backgroundCtx.fillRect( pX - r2, pY - r2, r2*2, r2*2 );
+
+/*				ctx3.clearRect( 0, 0, this.canvasWidth, this.canvasHeight );
+
+				ctx3.globalCompositeOperation = 'source-over';
+				ctx3.fillStyle = '#F00';
+				for( var i=0; i<20; i++ ){
+					for( var j=0; j<20; j++ ){
+						ctx3.fillRect( i*100, j*100, 10, 10 );
+					}
+				}
+
+				ctx3.globalCompositeOperation = 'destination-in';
+				ctx3.fillStyle = radGrd;
+				ctx3.fillRect( 0, 0, this.canvasWidth, this.canvasHeight );*/
+
+			}
+
+		}
+
+		var canvasBackground = document.createElement("canvas")
+		var canvasLighting = document.createElement("canvas")
+		var canvasEntities = document.createElement("canvas")
+		document.body.appendChild(canvasBackground)
+		//document.body.appendChild(canvasDarkness)
+		document.body.appendChild(canvasEntities)
+
+		canvasBackground.width = canvasLighting.width = canvasEntities.width = window.innerWidth;
+		canvasBackground.height = canvasLighting.height = canvasEntities.height = window.innerHeight;
+		var backgroundCtx = canvasBackground.getContext("2d");
+		var ligthmapCtx = canvasLighting.getContext("2d")
+		var entitiesCtx = canvasEntities.getContext("2d")
+
+		var gameManager = new GameManager(backgroundCtx, ligthmapCtx, entitiesCtx , canvasBackground.width, canvasBackground.height)
+		gameManager.addPlayer(100, 100)
+		gameManager.addPlayer(150, 150)
+		gameManager.selectPlayer(0)
+
+
+		//setInterval(function(){gameManager.spawnWart()}, 1000)
+
+		function run(){
+			gameManager.update()
+
+		}
+
+
+		function mouseMoveHandler(e) {
+			gameManager.hover(e)
+		}
+
+		function leftClickHandler(e) {
+			let target = {x: e.clientX, y: e.clientY}
+			gameManager.spawnBullet(target)
+		}
+
+		function mouseDownHandler(e){
+			let target = {x: e.clientX, y: e.clientY}
+			gameManager.spawnBullet(target)
+		}
+
+		function rightClickHandler(e) {
+			//e.preventDefault()
+		}
+
+		function keyDownHandler(e) {
+			if(e.key == "w") {
+				gameManager.movement.w = true
+			}
+			else if(e.key == "a") {
+				gameManager.movement.a = true
+			}
+			else if(e.key == "s") {
+				gameManager.movement.s = true
+			}
+			else if(e.key == "d") {
+				gameManager.movement.d = true
+			}
+			else if(e.key == "0") {
+				gameManager.selectPlayer(0)
+			}
+			else if(e.key == "1") {
+				gameManager.selectPlayer(1)
+			}
+		}
+
+		function keyUpHandler(e) {
+			if(e.key == "w") {
+				gameManager.movement.w = false
+			}
+			else if(e.key == "a") {
+				gameManager.movement.a = false
+			}
+			else if(e.key == "s") {
+				gameManager.movement.s = false
+			}
+			else if(e.key == "d") {
+				gameManager.movement.d = false
+			}
+		}
+
+		document.addEventListener('contextmenu', rightClickHandler);
+		document.addEventListener("mousemove", mouseMoveHandler, false);
+		document.addEventListener("click", leftClickHandler, false);
+		document.addEventListener("mousedown", mouseDownHandler, false);
+		document.addEventListener("keyup", keyUpHandler)
+		document.addEventListener("keydown", keyDownHandler)
+
+
+		var interval = setInterval(run, 10);
+	</script>
+
+</body>
+</html>
+<!-- 
+
+<script>
+
+// init canvas
+var     canvas = $( 'canvas' )               
+  ,        ctx = canvas[0].getContext( '2d' ) // world
+  ,       ctx2 = canvas[1].getContext( '2d' ) // fog
+  ,       ctx3 = canvas[2].getContext( '2d' ) // chars
+  ,      mDown = false
+  ,         r1 = 100
+  ,         r2 = 300
+  ,    density = .4
+  , hideOnMove = true
+  ,   hideFill = 'rgba( 0, 0, 0, .7 )'
+  ,    overlay = 'rgba( 0, 0, 0, 1 )'
+  ;
+
+  if( !hideOnMove ){
+  // shouldn't be done like this, but this is a demo
+  canvas.get(1).remove();
+}
+
+// black out the canvas
+ctx.fillStyle = overlay;
+ctx.fillRect( 0, 0, 1280, 800 );
+
+// set up our "eraser"
+ctx.globalCompositeOperation = 'destination-out';
+
+canvas.last()
+.on( 'mousemove', function( ev, ev2 ){
+	ev2 && ( ev = ev2 );
+
+	var pX = ev.pageX
+	, pY = ev.pageY
+	;
+
+    // reveal wherever we drag
+    var radGrd = ctx.createRadialGradient( pX, pY, r1, pX, pY, r2 );
+    radGrd.addColorStop(       0, 'rgba( 0, 0, 0,  1 )' );
+    radGrd.addColorStop( density, 'rgba( 0, 0, 0, .1 )' );
+    radGrd.addColorStop(       1, 'rgba( 0, 0, 0,  0 )' );
+    
+    ctx.fillStyle = radGrd;
+    ctx.fillRect( pX - r2, pY - r2, r2*2, r2*2 );
+    
+    // partially hide the entire map and re-reval where we are now
+    ctx2.globalCompositeOperation = 'source-over';
+    ctx2.clearRect( 0, 0, 1280, 800 );
+    ctx2.fillStyle = hideFill;
+    ctx2.fillRect ( 0, 0, 1280, 800 );
+
+    var radGrd = ctx.createRadialGradient( pX, pY, r1, pX, pY, r2 );
+    radGrd.addColorStop(  0, 'rgba( 0, 0, 0,  1 )' );
+    radGrd.addColorStop( .8, 'rgba( 0, 0, 0, .1 )' );
+    radGrd.addColorStop(  1, 'rgba( 0, 0, 0,  0 )' );
+
+    ctx2.globalCompositeOperation = 'destination-out';
+    ctx2.fillStyle = radGrd;
+    ctx2.fillRect( pX - r2, pY - r2, r2*2, r2*2 );
+
+    // hide characters except where we can see.  Can this be done in ctx2?
+    ctx3.clearRect( 0, 0, 1280, 800 );
+
+    // draw "characters"
+    ctx3.globalCompositeOperation = 'source-over';
+    ctx3.fillStyle = '#F00';
+    for( var i=0; i<20; i++ ){
+    	for( var j=0; j<20; j++ ){
+    		ctx3.fillRect( i*100, j*100, 10, 10 );
+    	}
+    }
+
+    // hide characters except for in current location
+    ctx3.globalCompositeOperation = 'destination-in';
+    ctx3.fillStyle = radGrd;
+    ctx3.fillRect( 0, 0, 1280, 800 );
+})
+.trigger( 'mousemove', {pageX: 150, pageY:150 });
+
+// cheat codes
+var keyHistory = '';
+$( document.body )
+.on( 'keypress', function( ev ){
+	keyHistory += String.fromCharCode( ev.keyCode ).toLowerCase();
+	if( ~keyHistory.indexOf( 'blacksheepwall' ) ){
+		canvas.remove();
+	}
+} );
+
+</script> --> 
+<!-- 
+    ctx3.clearRect( 0, 0, 1280, 800 );
+
+    ctx3.globalCompositeOperation = 'source-over';
+    ctx3.fillStyle = '#F00';
+    for( var i=0; i<20; i++ ){
+    	for( var j=0; j<20; j++ ){
+    		ctx3.fillRect( i*100, j*100, 10, 10 );
+    	}
+    }
+
+    ctx3.globalCompositeOperation = 'destination-in';
+    ctx3.fillStyle = radGrd;
+    ctx3.fillRect( 0, 0, 1280, 800 ); -->
